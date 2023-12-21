@@ -73,7 +73,6 @@ class TauriPty {
         throw new Error("Method not implemented.");
     }
     write(data) {
-        console.log(data);
         emit(`onDataDown${this.pid}`, { message: data });
     }
     kill(signal) {

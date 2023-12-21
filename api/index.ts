@@ -251,7 +251,6 @@ class TauriPty implements IPty, IDisposable {
         throw new Error("Method not implemented.");
     }
     write(data: string): void {
-        console.log(data);
         emit(`onDataDown${this.pid}`, { message: data })
     }
     kill(signal?: string | undefined): void {
