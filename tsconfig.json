@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "target": "ES6",
+        "module": "ES2022",
+        "noImplicitAny": true,
+        "removeComments": true,
+        "preserveConstEnums": true,
+        "sourceMap": true,
+        "moduleResolution": "Bundler",
+        "declaration": true,
+        "declarationDir": "dist/types"
+    },
+    "files": [
+        "api/index.ts"
+    ]
+}

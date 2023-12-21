@@ -1,0 +1,33 @@
+{
+    "name": "@tauri-pty/api",
+    "version": "0.0.1",
+    "description": "API package for tauri-plugin-pty",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Tnze/tauri-plugin-pty.git"
+    },
+    "homepage": "https://github.com/Tnze/tauri-plugin-pty",
+    "keywords": [
+        "tauri-plugin"
+    ],
+    "type": "module",
+    "scripts": {
+        "build": "rollup -c"
+    },
+    "files": [
+        "dist",
+        "README.md"
+    ],
+    "module": "dist/index.es.js",
+    "types": "dist/types/index.d.ts",
+    "author": "Tnze",
+    "license": "MIT",
+    "dependencies": {
+        "@tauri-apps/api": "^1.5.3"
+    },
+    "devDependencies": {
+        "rollup": "^4.9.1",
+        "rollup-plugin-typescript2": "^0.36.0",
+        "typescript": "^5.3.3"
+    }
+}

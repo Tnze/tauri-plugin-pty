@@ -1,0 +1,16 @@
+[package]
+name = "tauri-plugin-pty"
+version = "0.0.1"
+authors = ["Tnze"]
+description = "Pseudo Terminal (PTY) plugin for Tauri"
+keywords = ["tauri-plugin"]
+license = "MIT"
+edition = "2021"
+rust-version = "1.60"
+exclude = ["/examples"]
+
+[dependencies]
+serde = "1.0.193"
+serde_json = "1.0.108"
+tauri = { version = "1.5" }
+winpty-rs = "0.3.13"
