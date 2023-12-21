@@ -1,6 +1,6 @@
 import { Terminal } from "xterm"
 import "xterm/css/xterm.css"
-import { spawn } from "../../../api";
+import { spawn } from "../../../dist/index.es";
 
 const term = new Terminal({
     convertEol: true,
