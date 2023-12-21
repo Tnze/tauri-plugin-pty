@@ -1,5 +1,5 @@
 {
-    "name": "@tauri-pty/api",
+    "name": "tauri-pty",
     "version": "0.0.1",
     "description": "API package for tauri-plugin-pty",
     "repository": {
