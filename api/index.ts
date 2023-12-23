@@ -214,7 +214,10 @@ class TauriPty implements IPty, IDisposable {
     process: string;
     handleFlowControl: boolean;
 
+    _exitted: boolean;
+
     private _onData = new EventEmitter2<string>();
+    private _onExit = new EventEmitter2<{ exitCode: number; signal?: number | undefined; }>();
 
     constructor(file: string, args?: ArgvOrCommandLine, opt?: IWindowsPtyForkOptions) {
         args = typeof args === 'string' ? [args] : args ?? []; // Convert args to string[] anyways.
@@ -231,6 +234,7 @@ class TauriPty implements IPty, IDisposable {
             flowControlResume: opt?.flowControlResume ?? null,
         };
         invoke<number>('plugin:pty|spawn', invokeArgs).then(pid => {
+            this._exitted = false;
             this.pid = pid;
             this.readData()
         });
@@ -240,15 +244,24 @@ class TauriPty implements IPty, IDisposable {
     }
 
     public get onData(): IEvent<string> { return this._onData.event; }
-    onExit: IEvent<{ exitCode: number; signal?: number | undefined; }>;
+    public get onExit(): IEvent<{ exitCode: number; signal?: number | undefined; }> { return this._onExit.event; }
+
     resize(columns: number, rows: number): void {
-        invoke('plugin:pty|resize', { pid: this.pid, cols: columns, rows });
+        this.cols = columns;
+        this.rows = rows;
+        invoke('plugin:pty|resize', { pid: this.pid, cols: columns, rows }).catch(e => {
+            console.error('Resize error: ', e);
+            this.errorCheck();
+        });
     }
     clear(): void {
         throw new Error("Method not implemented.");
     }
     write(data: string): void {
-        invoke('plugin:pty|write', { pid: this.pid, data });
+        invoke('plugin:pty|write', { pid: this.pid, data }).catch(e => {
+            console.error('Writing error: ', e);
+            this.errorCheck();
+        });
     }
     kill(signal?: string | undefined): void {
         throw new Error("Method not implemented.");
@@ -267,10 +280,26 @@ class TauriPty implements IPty, IDisposable {
                 this._onData.fire(data);
             }
         } catch (e: any) {
+            this.errorCheck();
             if (typeof e === 'string' && e.includes('EOF')) {
                 return;
             }
-            throw e;
+            console.error('Reading error: ', e);
+        }
+    }
+
+    private async errorCheck() {
+        if (this._exitted) {
+            return;
+        }
+        try {
+            const exitCode = await invoke<number | null>('plugin:pty|exitstatus', { pid: this.pid })
+            if (exitCode != null) {
+                this._exitted = true;
+                this._onExit.fire({ exitCode });
+            }
+        } catch (e: any) {
+            console.error(e)
         }
     }
 }

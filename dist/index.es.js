@@ -73,6 +73,7 @@ class TauriPty {
     constructor(file, args, opt) {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j;
         this._onData = new EventEmitter2();
+        this._onExit = new EventEmitter2();
         args = typeof args === 'string' ? [args] : args !== null && args !== void 0 ? args : [];
         const invokeArgs = {
             file, args,
@@ -87,6 +88,7 @@ class TauriPty {
             flowControlResume: (_j = opt === null || opt === void 0 ? void 0 : opt.flowControlResume) !== null && _j !== void 0 ? _j : null,
         };
         invoke('plugin:pty|spawn', invokeArgs).then(pid => {
+            this._exitted = false;
             this.pid = pid;
             this.readData();
         });
@@ -95,14 +97,23 @@ class TauriPty {
         throw new Error("Method not implemented.");
     }
     get onData() { return this._onData.event; }
+    get onExit() { return this._onExit.event; }
     resize(columns, rows) {
-        invoke('plugin:pty|resize', { pid: this.pid, cols: columns, rows });
+        this.cols = columns;
+        this.rows = rows;
+        invoke('plugin:pty|resize', { pid: this.pid, cols: columns, rows }).catch(e => {
+            console.error('Resize error: ', e);
+            this.errorCheck();
+        });
     }
     clear() {
         throw new Error("Method not implemented.");
     }
     write(data) {
-        invoke('plugin:pty|write', { pid: this.pid, data });
+        invoke('plugin:pty|write', { pid: this.pid, data }).catch(e => {
+            console.error('Writing error: ', e);
+            this.errorCheck();
+        });
     }
     kill(signal) {
         throw new Error("Method not implemented.");
@@ -122,10 +133,28 @@ class TauriPty {
                 }
             }
             catch (e) {
+                this.errorCheck();
                 if (typeof e === 'string' && e.includes('EOF')) {
                     return;
                 }
-                throw e;
+                console.error('Reading error: ', e);
+            }
+        });
+    }
+    errorCheck() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this._exitted) {
+                return;
+            }
+            try {
+                const exitCode = yield invoke('plugin:pty|exitstatus', { pid: this.pid });
+                if (exitCode != null) {
+                    this._exitted = true;
+                    this._onExit.fire({ exitCode });
+                }
+            }
+            catch (e) {
+                console.error(e);
             }
         });
     }

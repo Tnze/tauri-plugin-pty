@@ -132,10 +132,29 @@ async fn resize(
     Ok(())
 }
 
+#[tauri::command]
+async fn exitstatus(
+    pid: PtyHandler,
+    state: tauri::State<'_, PluginState>,
+) -> Result<Option<u32>, String> {
+    let session = state
+        .sessions
+        .read()
+        .await
+        .get(&pid)
+        .ok_or("Unavaliable pid")?
+        .clone();
+    session
+        .get_exitstatus()
+        .map_err(|e| format!("GetExitStatus {pid} error: {e:?}"))
+}
+
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::<R>::new("pty")
-        .invoke_handler(tauri::generate_handler![spawn, write, read, resize])
+        .invoke_handler(tauri::generate_handler![
+            spawn, write, read, resize, exitstatus
+        ])
         .setup(|app_handle| {
             app_handle.manage(PluginState::default());
             Ok(())

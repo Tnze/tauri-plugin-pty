@@ -18,5 +18,6 @@ const pty = spawn("powershell.exe", [], {
     rows: term.rows,
 });
 pty.onData(data => term.write(data));
+pty.onExit(({ exitCode }) => { term.write(`\n\nProgram exit: ${exitCode}`) })
 term.onData(data => pty.write(data));
 term.onResize(e => pty.resize(e.cols, e.rows));
