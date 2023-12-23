@@ -34,7 +34,7 @@ async fn spawn<R: Runtime>(
     flow_control_resume: Option<String>,
 
     state: tauri::State<'_, PluginState>,
-    app_handle: AppHandle<R>,
+    _app_handle: AppHandle<R>,
 ) -> Result<PtyHandler, String> {
     // TODO: Support these parameters
     let _ = term_name;

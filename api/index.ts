@@ -261,9 +261,16 @@ class TauriPty implements IPty, IDisposable {
     }
 
     private async readData() {
-        for (; ;) {
-            const data = await invoke<string>('plugin:pty|read', { pid: this.pid });
-            this._onData.fire(data);
+        try {
+            for (; ;) {
+                const data = await invoke<string>('plugin:pty|read', { pid: this.pid });
+                this._onData.fire(data);
+            }
+        } catch (e: any) {
+            if (typeof e === 'string' && e.includes('EOF')) {
+                return;
+            }
+            throw e;
         }
     }
 }

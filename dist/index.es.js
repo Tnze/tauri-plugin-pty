@@ -115,9 +115,17 @@ class TauriPty {
     }
     readData() {
         return __awaiter(this, void 0, void 0, function* () {
-            for (;;) {
-                const data = yield invoke('plugin:pty|read', { pid: this.pid });
-                this._onData.fire(data);
+            try {
+                for (;;) {
+                    const data = yield invoke('plugin:pty|read', { pid: this.pid });
+                    this._onData.fire(data);
+                }
+            }
+            catch (e) {
+                if (typeof e === 'string' && e.includes('EOF')) {
+                    return;
+                }
+                throw e;
             }
         });
     }
