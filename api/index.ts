@@ -4,7 +4,6 @@
  * Copyright (c) 2023, Tnze (MIT License).
  */
 import { invoke } from "@tauri-apps/api"
-import { listen, emit } from '@tauri-apps/api/event'
 import { EventEmitter2 } from "./eventEmitter2";
 
 /**
@@ -233,9 +232,7 @@ class TauriPty implements IPty, IDisposable {
         };
         invoke<number>('plugin:pty|spawn', invokeArgs).then(pid => {
             this.pid = pid;
-            listen<{ message: string }>(`onDataUp${pid}`, event => {
-                this._onData.fire(event.payload.message)
-            });
+            this.readData()
         });
     }
     dispose(): void {
@@ -245,13 +242,13 @@ class TauriPty implements IPty, IDisposable {
     public get onData(): IEvent<string> { return this._onData.event; }
     onExit: IEvent<{ exitCode: number; signal?: number | undefined; }>;
     resize(columns: number, rows: number): void {
-        throw new Error("Method not implemented.");
+        invoke('plugin:pty|resize', { pid: this.pid, cols: columns, rows });
     }
     clear(): void {
         throw new Error("Method not implemented.");
     }
     write(data: string): void {
-        emit(`onDataDown${this.pid}`, { message: data })
+        invoke('plugin:pty|write', { pid: this.pid, data });
     }
     kill(signal?: string | undefined): void {
         throw new Error("Method not implemented.");
@@ -261,5 +258,12 @@ class TauriPty implements IPty, IDisposable {
     }
     resume(): void {
         throw new Error("Method not implemented.");
+    }
+
+    private async readData() {
+        for (; ;) {
+            const data = await invoke<string>('plugin:pty|read', { pid: this.pid });
+            this._onData.fire(data);
+        }
     }
 }

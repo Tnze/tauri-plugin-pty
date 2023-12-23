@@ -1,10 +1,16 @@
 use std::{collections::BTreeMap, ffi::OsString, sync::Arc};
 
 use tauri::{
+    async_runtime::RwLock,
     plugin::{Builder, TauriPlugin},
     AppHandle, Manager, Runtime,
 };
 use winptyrs::{AgentConfig, MouseMode, PTYArgs, PTY};
+
+#[derive(Default)]
+struct PluginState {
+    sessions: RwLock<BTreeMap<PtyHandler, Arc<PTY>>>,
+}
 
 type PtyHandler = u32;
 
@@ -27,6 +33,7 @@ async fn spawn<R: Runtime>(
     flow_control_pause: Option<String>,
     flow_control_resume: Option<String>,
 
+    state: tauri::State<'_, PluginState>,
     app_handle: AppHandle<R>,
 ) -> Result<PtyHandler, String> {
     // TODO: Support these parameters
@@ -66,37 +73,72 @@ async fn spawn<R: Runtime>(
 
     let pid = pty.get_pid();
     let pty = Arc::new(pty);
+    state.sessions.write().await.insert(pid, pty);
 
-    let pty2 = pty.clone();
-    let event_name = format!("onDataDown{pid}");
-    let listen_handler = app_handle.listen_global(event_name, move |e| {
-        let payload: Payload = serde_json::from_str(e.payload().unwrap()).unwrap();
-        pty2.write(OsString::from(payload.message)).unwrap();
-    });
-
-    let app_handle2 = app_handle.clone();
-    let pty2 = pty.clone();
-    tauri::async_runtime::spawn(async move {
-        let event_name = format!("onDataUp{pid}");
-        loop {
-            let Ok(data) = pty2.read(1024, true) else {
-                break;
-            };
-            let payload = Payload {
-                message: data.to_string_lossy().to_string(),
-            };
-            if let Err(_e) = app_handle2.emit_all(&event_name, payload) {
-                break;
-            }
-        }
-        app_handle2.unlisten(listen_handler);
-    });
     Ok(pid)
+}
+
+#[tauri::command]
+async fn write(
+    pid: PtyHandler,
+    data: String,
+    state: tauri::State<'_, PluginState>,
+) -> Result<u32, String> {
+    let session = state
+        .sessions
+        .read()
+        .await
+        .get(&pid)
+        .ok_or("Unavaliable pid")?
+        .clone();
+    let n = session
+        .write(OsString::from(data))
+        .map_err(|e| format!("Write {pid} error: {e:?}"))?;
+    Ok(n)
+}
+
+#[tauri::command]
+async fn read(pid: PtyHandler, state: tauri::State<'_, PluginState>) -> Result<String, String> {
+    let session = state
+        .sessions
+        .read()
+        .await
+        .get(&pid)
+        .ok_or("Unavaliable pid")?
+        .clone();
+    let data = session
+        .read(1024, true)
+        .map_err(|e| format!("Read {pid} error: {e:?}"))?;
+    Ok(data.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+async fn resize(
+    pid: PtyHandler,
+    cols: i32,
+    rows: i32,
+    state: tauri::State<'_, PluginState>,
+) -> Result<(), String> {
+    let session = state
+        .sessions
+        .read()
+        .await
+        .get(&pid)
+        .ok_or("Unavaliable pid")?
+        .clone();
+    session
+        .set_size(cols, rows)
+        .map_err(|e| format!("Resize {pid} error: {e:?}"))?;
+    Ok(())
 }
 
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::<R>::new("pty")
-        .invoke_handler(tauri::generate_handler![spawn])
+        .invoke_handler(tauri::generate_handler![spawn, write, read, resize])
+        .setup(|app_handle| {
+            app_handle.manage(PluginState::default());
+            Ok(())
+        })
         .build()
 }
