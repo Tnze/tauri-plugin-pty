@@ -214,7 +214,8 @@ class TauriPty implements IPty, IDisposable {
     process: string;
     handleFlowControl: boolean;
 
-    _exitted: boolean;
+    private _exitted: boolean;
+    private _init: Promise<void>;
 
     private _onData = new EventEmitter2<string>();
     private _onExit = new EventEmitter2<{ exitCode: number; signal?: number | undefined; }>();
@@ -233,10 +234,10 @@ class TauriPty implements IPty, IDisposable {
             flowControlPause: opt?.flowControlPause ?? null,
             flowControlResume: opt?.flowControlResume ?? null,
         };
-        invoke<number>('plugin:pty|spawn', invokeArgs).then(pid => {
+        this._init = invoke<number>('plugin:pty|spawn', invokeArgs).then(pid => {
             this._exitted = false;
             this.pid = pid;
-            this.readData()
+            this.readData();
         });
     }
     dispose(): void {
@@ -249,22 +250,28 @@ class TauriPty implements IPty, IDisposable {
     resize(columns: number, rows: number): void {
         this.cols = columns;
         this.rows = rows;
-        invoke('plugin:pty|resize', { pid: this.pid, cols: columns, rows }).catch(e => {
-            console.error('Resize error: ', e);
-            this.errorCheck();
-        });
+        this._init.then(() =>
+            invoke('plugin:pty|resize', { pid: this.pid, cols: columns, rows }).catch(e => {
+                console.error('Resize error: ', e);
+                this.errorCheck();
+            })
+        );
     }
     clear(): void {
         console.warn("clear is un implemented!")
     }
     write(data: string): void {
-        invoke('plugin:pty|write', { pid: this.pid, data }).catch(e => {
-            console.error('Writing error: ', e);
-            this.errorCheck();
-        });
+        this._init.then(() =>
+            invoke('plugin:pty|write', { pid: this.pid, data }).catch(e => {
+                console.error('Writing error: ', e);
+                this.errorCheck();
+            })
+        );
     }
     kill(signal?: string | undefined): void {
-        invoke<string>('plugin:pty|kill', { pid: this.pid });
+        this._init.then(() =>
+            invoke<string>('plugin:pty|kill', { pid: this.pid })
+        );
     }
     pause(): void {
         throw new Error("Method not implemented.");
@@ -274,6 +281,7 @@ class TauriPty implements IPty, IDisposable {
     }
 
     private async readData() {
+        await this._init;
         try {
             for (; ;) {
                 const data = await invoke<string>('plugin:pty|read', { pid: this.pid });

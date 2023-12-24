@@ -87,7 +87,7 @@ class TauriPty {
             flowControlPause: (_h = opt === null || opt === void 0 ? void 0 : opt.flowControlPause) !== null && _h !== void 0 ? _h : null,
             flowControlResume: (_j = opt === null || opt === void 0 ? void 0 : opt.flowControlResume) !== null && _j !== void 0 ? _j : null,
         };
-        invoke('plugin:pty|spawn', invokeArgs).then(pid => {
+        this._init = invoke('plugin:pty|spawn', invokeArgs).then(pid => {
             this._exitted = false;
             this.pid = pid;
             this.readData();
@@ -101,22 +101,22 @@ class TauriPty {
     resize(columns, rows) {
         this.cols = columns;
         this.rows = rows;
-        invoke('plugin:pty|resize', { pid: this.pid, cols: columns, rows }).catch(e => {
+        this._init.then(() => invoke('plugin:pty|resize', { pid: this.pid, cols: columns, rows }).catch(e => {
             console.error('Resize error: ', e);
             this.errorCheck();
-        });
+        }));
     }
     clear() {
         console.warn("clear is un implemented!");
     }
     write(data) {
-        invoke('plugin:pty|write', { pid: this.pid, data }).catch(e => {
+        this._init.then(() => invoke('plugin:pty|write', { pid: this.pid, data }).catch(e => {
             console.error('Writing error: ', e);
             this.errorCheck();
-        });
+        }));
     }
     kill(signal) {
-        invoke('plugin:pty|kill', { pid: this.pid });
+        this._init.then(() => invoke('plugin:pty|kill', { pid: this.pid }));
     }
     pause() {
         throw new Error("Method not implemented.");
@@ -126,6 +126,7 @@ class TauriPty {
     }
     readData() {
         return __awaiter(this, void 0, void 0, function* () {
+            yield this._init;
             try {
                 for (;;) {
                     const data = yield invoke('plugin:pty|read', { pid: this.pid });
