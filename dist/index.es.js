@@ -107,7 +107,7 @@ class TauriPty {
         });
     }
     clear() {
-        throw new Error("Method not implemented.");
+        console.warn("clear is un implemented!");
     }
     write(data) {
         invoke('plugin:pty|write', { pid: this.pid, data }).catch(e => {
@@ -116,7 +116,7 @@ class TauriPty {
         });
     }
     kill(signal) {
-        throw new Error("Method not implemented.");
+        invoke('plugin:pty|kill', { pid: this.pid });
     }
     pause() {
         throw new Error("Method not implemented.");

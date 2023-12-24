@@ -255,7 +255,7 @@ class TauriPty implements IPty, IDisposable {
         });
     }
     clear(): void {
-        throw new Error("Method not implemented.");
+        console.warn("clear is un implemented!")
     }
     write(data: string): void {
         invoke('plugin:pty|write', { pid: this.pid, data }).catch(e => {
@@ -264,7 +264,7 @@ class TauriPty implements IPty, IDisposable {
         });
     }
     kill(signal?: string | undefined): void {
-        throw new Error("Method not implemented.");
+        invoke<string>('plugin:pty|kill', { pid: this.pid });
     }
     pause(): void {
         throw new Error("Method not implemented.");
