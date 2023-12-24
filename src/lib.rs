@@ -1,15 +1,31 @@
-use std::{collections::BTreeMap, ffi::OsString, sync::Arc};
+use std::{
+    collections::BTreeMap,
+    ffi::OsString,
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc,
+    },
+};
 
+use portable_pty::{native_pty_system, Child, ChildKiller, CommandBuilder, PtyPair, PtySize};
 use tauri::{
-    async_runtime::RwLock,
+    async_runtime::{Mutex, RwLock},
     plugin::{Builder, TauriPlugin},
     AppHandle, Manager, Runtime,
 };
-use winptyrs::{AgentConfig, MouseMode, PTYArgs, PTY};
 
 #[derive(Default)]
 struct PluginState {
-    sessions: RwLock<BTreeMap<PtyHandler, Arc<PTY>>>,
+    session_id: AtomicU32,
+    sessions: RwLock<BTreeMap<PtyHandler, Arc<Session>>>,
+}
+
+struct Session {
+    pair: Mutex<PtyPair>,
+    child: Mutex<Box<dyn Child + Send + Sync>>,
+    child_killer: Mutex<Box<dyn ChildKiller + Send + Sync>>,
+    writer: Mutex<Box<dyn std::io::Write + Send>>,
+    reader: Mutex<Box<dyn std::io::Read + Send>>,
 }
 
 type PtyHandler = u32;
@@ -24,8 +40,8 @@ async fn spawn<R: Runtime>(
     file: String,
     args: Vec<String>,
     term_name: Option<String>,
-    cols: i32,
-    rows: i32,
+    cols: u16,
+    rows: u16,
     cwd: Option<String>,
     env: BTreeMap<String, String>,
     encoding: Option<String>,
@@ -43,39 +59,40 @@ async fn spawn<R: Runtime>(
     let _ = flow_control_pause;
     let _ = flow_control_resume;
 
-    let pty_args = PTYArgs {
-        cols,
-        rows,
-        mouse_mode: MouseMode::WINPTY_MOUSE_MODE_AUTO,
-        timeout: 10000,
-        agent_config: AgentConfig::WINPTY_FLAG_COLOR_ESCAPES,
-    };
-    let mut pty = PTY::new(&pty_args).map_err(|e| e.to_string_lossy().to_string())?;
-    let env_str = if !env.is_empty() {
-        let mut env_str = OsString::new();
-        for (k, v) in env.iter() {
-            env_str.push(&k);
-            env_str.push("=");
-            env_str.push(&v);
-            env_str.push("\0");
-        }
-        Some(env_str)
-    } else {
-        None
-    };
-    let args_str = if !args.is_empty() {
-        Some(args.join(" ").into())
-    } else {
-        None
-    };
-    pty.spawn(file.into(), args_str, cwd.map(|x| x.into()), env_str)
-        .map_err(|x| x.to_string_lossy().to_string())?;
+    let pty_system = native_pty_system();
+    // Create PTY, get the writer and reader
+    let pair = pty_system
+        .openpty(PtySize {
+            rows,
+            cols,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+        .map_err(|e| e.to_string())?;
+    let writer = pair.master.take_writer().map_err(|e| e.to_string())?;
+    let reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
 
-    let pid = pty.get_pid();
-    let pty = Arc::new(pty);
-    state.sessions.write().await.insert(pid, pty);
+    let mut cmd = CommandBuilder::new(file);
+    cmd.args(args);
+    if let Some(cwd) = cwd {
+        cmd.cwd(OsString::from(cwd));
+    }
+    for (k, v) in env.iter() {
+        cmd.env(OsString::from(k), OsString::from(v));
+    }
+    let child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
+    let child_killer = child.clone_killer();
+    let handler = state.session_id.fetch_add(1, Ordering::Relaxed);
 
-    Ok(pid)
+    let pair = Arc::new(Session {
+        pair: Mutex::new(pair),
+        child: Mutex::new(child),
+        child_killer: Mutex::new(child_killer),
+        writer: Mutex::new(writer),
+        reader: Mutex::new(reader),
+    });
+    state.sessions.write().await.insert(handler, pair);
+    Ok(handler)
 }
 
 #[tauri::command]
@@ -83,7 +100,7 @@ async fn write(
     pid: PtyHandler,
     data: String,
     state: tauri::State<'_, PluginState>,
-) -> Result<u32, String> {
+) -> Result<(), String> {
     let session = state
         .sessions
         .read()
@@ -91,10 +108,13 @@ async fn write(
         .get(&pid)
         .ok_or("Unavaliable pid")?
         .clone();
-    let n = session
-        .write(OsString::from(data))
-        .map_err(|e| format!("Write {pid} error: {e:?}"))?;
-    Ok(n)
+    session
+        .writer
+        .lock()
+        .await
+        .write_all(data.as_bytes())
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -106,17 +126,21 @@ async fn read(pid: PtyHandler, state: tauri::State<'_, PluginState>) -> Result<S
         .get(&pid)
         .ok_or("Unavaliable pid")?
         .clone();
-    let data = session
-        .read(1024, true)
-        .map_err(|e| format!("Read {pid} error: {e:?}"))?;
-    Ok(data.to_string_lossy().to_string())
+    let mut buf = [0u8; 1024];
+    let n = session
+        .reader
+        .lock()
+        .await
+        .read(&mut buf)
+        .map_err(|e| e.to_string())?;
+    Ok(String::from_utf8_lossy(&buf[..n]).to_string())
 }
 
 #[tauri::command]
 async fn resize(
     pid: PtyHandler,
-    cols: i32,
-    rows: i32,
+    cols: u16,
+    rows: u16,
     state: tauri::State<'_, PluginState>,
 ) -> Result<(), String> {
     let session = state
@@ -127,8 +151,35 @@ async fn resize(
         .ok_or("Unavaliable pid")?
         .clone();
     session
-        .set_size(cols, rows)
-        .map_err(|e| format!("Resize {pid} error: {e:?}"))?;
+        .pair
+        .lock()
+        .await
+        .master
+        .resize(PtySize {
+            rows,
+            cols,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn kill(pid: PtyHandler, state: tauri::State<'_, PluginState>) -> Result<(), String> {
+    let session = state
+        .sessions
+        .read()
+        .await
+        .get(&pid)
+        .ok_or("Unavaliable pid")?
+        .clone();
+    session
+        .child_killer
+        .lock()
+        .await
+        .kill()
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -144,16 +195,21 @@ async fn exitstatus(
         .get(&pid)
         .ok_or("Unavaliable pid")?
         .clone();
-    session
-        .get_exitstatus()
-        .map_err(|e| format!("GetExitStatus {pid} error: {e:?}"))
+    let exitstatus = session
+        .child
+        .lock()
+        .await
+        .try_wait()
+        .map_err(|e| e.to_string())?
+        .map(|x| x.exit_code());
+    Ok(exitstatus)
 }
 
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::<R>::new("pty")
         .invoke_handler(tauri::generate_handler![
-            spawn, write, read, resize, exitstatus
+            spawn, write, read, resize, kill, exitstatus
         ])
         .setup(|app_handle| {
             app_handle.manage(PluginState::default());

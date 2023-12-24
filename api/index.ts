@@ -3,7 +3,7 @@
  * Copyright (c) 2018, Microsoft Corporation (MIT License).
  * Copyright (c) 2023, Tnze (MIT License).
  */
-import { invoke } from "@tauri-apps/api"
+import { invoke } from '@tauri-apps/api'
 import { EventEmitter2 } from "./eventEmitter2";
 
 /**
