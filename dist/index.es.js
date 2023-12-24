@@ -87,10 +87,11 @@ class TauriPty {
             flowControlPause: (_h = opt === null || opt === void 0 ? void 0 : opt.flowControlPause) !== null && _h !== void 0 ? _h : null,
             flowControlResume: (_j = opt === null || opt === void 0 ? void 0 : opt.flowControlResume) !== null && _j !== void 0 ? _j : null,
         };
+        this._exitted = false;
         this._init = invoke('plugin:pty|spawn', invokeArgs).then(pid => {
-            this._exitted = false;
             this.pid = pid;
             this.readData();
+            this.wait();
         });
     }
     dispose() {
@@ -103,7 +104,6 @@ class TauriPty {
         this.rows = rows;
         this._init.then(() => invoke('plugin:pty|resize', { pid: this.pid, cols: columns, rows }).catch(e => {
             console.error('Resize error: ', e);
-            this.errorCheck();
         }));
     }
     clear() {
@@ -112,7 +112,6 @@ class TauriPty {
     write(data) {
         this._init.then(() => invoke('plugin:pty|write', { pid: this.pid, data }).catch(e => {
             console.error('Writing error: ', e);
-            this.errorCheck();
         }));
     }
     kill(signal) {
@@ -134,7 +133,6 @@ class TauriPty {
                 }
             }
             catch (e) {
-                this.errorCheck();
                 if (typeof e === 'string' && e.includes('EOF')) {
                     return;
                 }
@@ -142,17 +140,15 @@ class TauriPty {
             }
         });
     }
-    errorCheck() {
+    wait() {
         return __awaiter(this, void 0, void 0, function* () {
             if (this._exitted) {
                 return;
             }
             try {
                 const exitCode = yield invoke('plugin:pty|exitstatus', { pid: this.pid });
-                if (exitCode != null) {
-                    this._exitted = true;
-                    this._onExit.fire({ exitCode });
-                }
+                this._exitted = true;
+                this._onExit.fire({ exitCode });
             }
             catch (e) {
                 console.error(e);

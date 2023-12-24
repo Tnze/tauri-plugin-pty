@@ -234,10 +234,11 @@ class TauriPty implements IPty, IDisposable {
             flowControlPause: opt?.flowControlPause ?? null,
             flowControlResume: opt?.flowControlResume ?? null,
         };
+        this._exitted = false;
         this._init = invoke<number>('plugin:pty|spawn', invokeArgs).then(pid => {
-            this._exitted = false;
             this.pid = pid;
             this.readData();
+            this.wait();
         });
     }
     dispose(): void {
@@ -253,7 +254,6 @@ class TauriPty implements IPty, IDisposable {
         this._init.then(() =>
             invoke('plugin:pty|resize', { pid: this.pid, cols: columns, rows }).catch(e => {
                 console.error('Resize error: ', e);
-                this.errorCheck();
             })
         );
     }
@@ -264,7 +264,6 @@ class TauriPty implements IPty, IDisposable {
         this._init.then(() =>
             invoke('plugin:pty|write', { pid: this.pid, data }).catch(e => {
                 console.error('Writing error: ', e);
-                this.errorCheck();
             })
         );
     }
@@ -288,7 +287,6 @@ class TauriPty implements IPty, IDisposable {
                 this._onData.fire(data);
             }
         } catch (e: any) {
-            this.errorCheck();
             if (typeof e === 'string' && e.includes('EOF')) {
                 return;
             }
@@ -296,18 +294,16 @@ class TauriPty implements IPty, IDisposable {
         }
     }
 
-    private async errorCheck() {
+    private async wait() {
         if (this._exitted) {
             return;
         }
         try {
-            const exitCode = await invoke<number | null>('plugin:pty|exitstatus', { pid: this.pid })
-            if (exitCode != null) {
-                this._exitted = true;
-                this._onExit.fire({ exitCode });
-            }
+            const exitCode = await invoke<number>('plugin:pty|exitstatus', { pid: this.pid })
+            this._exitted = true;
+            this._onExit.fire({ exitCode });
         } catch (e: any) {
-            console.error(e)
+            console.error(e);
         }
     }
 }

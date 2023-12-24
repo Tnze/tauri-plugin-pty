@@ -184,10 +184,7 @@ async fn kill(pid: PtyHandler, state: tauri::State<'_, PluginState>) -> Result<(
 }
 
 #[tauri::command]
-async fn exitstatus(
-    pid: PtyHandler,
-    state: tauri::State<'_, PluginState>,
-) -> Result<Option<u32>, String> {
+async fn exitstatus(pid: PtyHandler, state: tauri::State<'_, PluginState>) -> Result<u32, String> {
     let session = state
         .sessions
         .read()
@@ -199,9 +196,9 @@ async fn exitstatus(
         .child
         .lock()
         .await
-        .try_wait()
+        .wait()
         .map_err(|e| e.to_string())?
-        .map(|x| x.exit_code());
+        .exit_code();
     Ok(exitstatus)
 }
 
