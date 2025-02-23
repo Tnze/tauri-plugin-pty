@@ -1,0 +1,3 @@
+[default]
+description = "Allows the spawn command"
+ permissions = ["allow-spawn", "allow-read", "allow-write", "allow-resize", "allow-kill", "allow-exitstatus"]
