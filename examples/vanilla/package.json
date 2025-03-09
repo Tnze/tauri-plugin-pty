@@ -12,14 +12,14 @@
   "author": "Tnze",
   "license": "MIT",
   "dependencies": {
-    "@tauri-apps/api": "^2.2.0",
+    "@tauri-apps/api": "^2.3.0",
     "@tauri-apps/plugin-os": "^2.2.0",
     "tauri-pty": "file:../..",
-    "xterm": "^5.3.0",
-    "xterm-addon-fit": "^0.8.0"
+    "@xterm/xterm": "^5.5.0",
+    "@xterm/addon-fit": "^0.10.0"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.2.7",
-    "vite": "^6.1.1"
+    "@tauri-apps/cli": "^2.3.1",
+    "vite": "^6.2.1"
   }
 }

@@ -1,6 +1,6 @@
-import { Terminal } from "xterm"
-import { FitAddon } from 'xterm-addon-fit';
-import "xterm/css/xterm.css"
+import { Terminal } from "@xterm/xterm"
+import { FitAddon } from '@xterm/addon-fit';
+import "@xterm/xterm/css/xterm.css"
 import { spawn } from "tauri-pty";
 import { platform } from '@tauri-apps/plugin-os';
 
