@@ -1,7 +1,8 @@
 import { Terminal } from "xterm"
 import { FitAddon } from 'xterm-addon-fit';
 import "xterm/css/xterm.css"
-import { spawn } from "../../../dist/index.es";
+import { spawn } from "tauri-pty";
+import { platform } from '@tauri-apps/plugin-os';
 
 const term = new Terminal({
     convertEol: true,
@@ -13,7 +14,7 @@ term.open(document.getElementById('terminal'));
 fitAddon.fit();
 addEventListener('resize', () => fitAddon.fit());
 
-const pty = spawn("powershell.exe", [], {
+const pty = spawn(platform() === "windows" ? "powershell.exe" : "bash", [], {
     cols: term.cols,
     rows: term.rows,
 });

@@ -1,53 +1,43 @@
 {
-  "package": {
-    "productName": "app",
-    "version": "0.1.0"
-  },
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "app",
+  "version": "0.1.0",
+  "identifier": "pers.tnze.tauri-pty",
   "build": {
-    "distDir": "../dist",
-    "devPath": "http://localhost:1420",
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build"
   },
-  "tauri": {
-    "bundle": {
-      "active": true,
-      "targets": "all",
-      "identifier": "pers.tnze.tauri-pty",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
-      "resources": [],
-      "externalBin": [],
-      "copyright": "",
-      "category": "DeveloperTool",
-      "shortDescription": "",
-      "longDescription": "",
-      "deb": {
-        "depends": []
-      },
-      "macOS": {
-        "frameworks": [],
-        "exceptionDomain": "",
-        "signingIdentity": null,
-        "entitlements": null
-      },
-      "windows": {
-        "certificateThumbprint": null,
-        "digestAlgorithm": "sha256",
-        "timestampUrl": ""
-      }
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": [],
+    "externalBin": [],
+    "copyright": "",
+    "category": "DeveloperTool",
+    "shortDescription": "",
+    "longDescription": "",
+    "macOS": {
+      "frameworks": [],
+      "exceptionDomain": "",
+      "signingIdentity": null,
+      "entitlements": null
     },
-    "updater": {
-      "active": false
-    },
-    "allowlist": {
-      "all": false
-    },
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    }
+  },
+  "app": {
     "windows": [
       {
         "title": "app",

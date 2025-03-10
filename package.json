@@ -23,11 +23,11 @@
     "author": "Tnze",
     "license": "MIT",
     "dependencies": {
-        "@tauri-apps/api": "^1.5.3"
+        "@tauri-apps/api": "2.2"
     },
     "devDependencies": {
-        "rollup": "^4.9.1",
+        "rollup": "^4.34.8",
         "rollup-plugin-typescript2": "^0.36.0",
-        "typescript": "^5.3.3"
+        "typescript": "^5.7.3"
     }
 }

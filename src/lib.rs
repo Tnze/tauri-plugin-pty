@@ -208,7 +208,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         .invoke_handler(tauri::generate_handler![
             spawn, write, read, resize, kill, exitstatus
         ])
-        .setup(|app_handle| {
+        .setup(|app_handle, _api| {
             app_handle.manage(PluginState::default());
             Ok(())
         })
