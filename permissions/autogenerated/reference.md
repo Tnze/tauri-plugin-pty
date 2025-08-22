@@ -2,6 +2,8 @@
 
 Allows the spawn command
 
+#### This default permission set includes the following:
+
 - `allow-spawn`
 - `allow-read`
 - `allow-write`

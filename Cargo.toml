@@ -1,6 +1,6 @@
 [package]
 name = "tauri-plugin-pty"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Tnze"]
 description = "Pseudo Terminal (PTY) plugin for Tauri"
 keywords = ["tauri-plugin"]
