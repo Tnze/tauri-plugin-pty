@@ -283,8 +283,8 @@ class TauriPty implements IPty, IDisposable {
         await this._init;
         try {
             for (; ;) {
-                const data = await invoke<Uint8Array>('plugin:pty|read', { pid: this.pid });
-                this._onData.fire(data);
+                const data = await invoke<ArrayBuffer>('plugin:pty|read', { pid: this.pid });
+                this._onData.fire(new Uint8Array(data));
             }
         } catch (e: any) {
             if (typeof e === 'string' && e.includes('EOF')) {

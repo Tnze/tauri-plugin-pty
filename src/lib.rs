@@ -113,7 +113,7 @@ async fn write(
 }
 
 #[tauri::command]
-async fn read(pid: PtyHandler, state: tauri::State<'_, PluginState>) -> Result<Vec<u8>, String> {
+async fn read(pid: PtyHandler, state: tauri::State<'_, PluginState>) -> Result<tauri::ipc::Response, String> {
     let session = state
         .sessions
         .read()
@@ -132,7 +132,7 @@ async fn read(pid: PtyHandler, state: tauri::State<'_, PluginState>) -> Result<V
         Err(String::from("EOF"))
     } else {
         buf.truncate(n);
-        Ok(buf)
+        Ok(tauri::ipc::Response::new(buf))
     }
 }
 

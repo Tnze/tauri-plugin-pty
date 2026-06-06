@@ -129,7 +129,7 @@ class TauriPty {
             try {
                 for (;;) {
                     const data = yield invoke('plugin:pty|read', { pid: this.pid });
-                    this._onData.fire(data);
+                    this._onData.fire(new Uint8Array(data));
                 }
             }
             catch (e) {
