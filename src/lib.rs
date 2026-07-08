@@ -30,6 +30,7 @@ struct Session {
 
 type PtyHandler = u32;
 
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 async fn spawn<R: Runtime>(
     file: String,
@@ -213,13 +214,7 @@ async fn exitstatus(pid: PtyHandler, state: tauri::State<'_, PluginState>) -> Re
 #[tauri::command]
 async fn get_all_pids(state: tauri::State<'_, PluginState>) -> Result<Vec<PtyHandler>, String> {
     let sessions = state.sessions.read().await.clone();
-
-    let mut session_pids = vec![];
-    for (key, _value) in sessions.iter() {
-        session_pids.push(key.clone());
-    }
-
-    Ok(session_pids)
+    Ok(sessions.keys().copied().collect())
 }
 
 /// Initializes the plugin.
